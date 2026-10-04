@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <h1>Enviro365 Portfolio</h1>
+        Inverstor ID: <input type ="number" id="investorID" value="1">
+        <button onclick="loadPortfolio()">Load Portfolio</button>
+
+        <div id="Portfolio"></div>
+        <hr>
+        <h2>Submit Withdrawal</h2>
+        <form onsubmit="submitWithraw(event)">
+            Product Type: <select id="productType">
+                <option>RETIREMENT</option>
+                <option>SAVINGS</option>
+            </select><br><br>
+            Amount: <input type="number" id="amount" required><br><br>
+            <button type="submit">Withdraw</button>
+        </form>
+        <p id="message"></p>
+        <hr>
+        <h2>Withdraw History</h2>
+        <button onclick="loadHistory()">Load History</button>
+        <button onclick="downloadCsv()">Download CSV</button>
+        <div id="history"></div>
+
+        <script>
+            var API = "http://localhost:8080/api";
+            function loadPortfolio(){
+                var id = document.getElementById('investorId').value;
+                fetch(API+"/investors/"+id+"/portfolio")
+                .then(function(r){return r.json()})
+                .then(function(data){
+                    document.getElementById('portfolio').innerHTML = "<b>"+data.name+"</b> Age: "+data.age+" Total: R"+data.totalBalance+"<br>Products: "+JSON.stringify(data.products);
+                }).catch(function(){ document.getElementById('portfolio').innerHTML="Investor not found"; });
+            }
+            function submitWithdrawal(e){
+                e.preventDefault();
+                var body = { investorId: parseInt(document.getElementById('investorId').value), productType: document.getElementById('productType').value, amount: parseFloat(document.getElementById('amount').value) };
+                fetch(API+"/withdrawals",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+                .then(function(r){ return r.json().then(function(data){ return {ok:r.ok, data:data}; }); })
+                .then(function(res){
+                    if(res.ok){ document.getElementById('message').innerText="SUCCESS: Withdrawal Approved R"+res.data.amount; loadPortfolio(); loadHistory(); }
+                    else{ document.getElementById('message').innerText="ERROR: "+res.data.error; }
+                });
+            }
+            function loadHistory(){
+                var id = document.getElementById('investorId').value;
+                fetch(API+"/withdrawals/"+id).then(function(r){return r.json()}).then(function(list){
+                    var html=""; for(var i=0;i<list.length;i++){ html+= list[i].date+" - "+list[i].productType+" - R"+list[i].amount+" - "+list[i].status+"<br>"; }
+                    document.getElementById('history').innerHTML=html;
+                });
+            }
+            function downloadCsv(){
+                var id = document.getElementById('investorId').value;
+                window.location.href = API+"/withdrawals/export?investorId="+id;
+            }
+            loadPortfolio();
+        </script>
+    </body>
+</html>
